@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Wallet | Secure Academic Credential Verification System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+      background: #f5f7fa;
+      color: #222;
+    }
+
+    h1, h2 {
+      color: #1a3c6e;
+    }
+
+    nav {
+      margin-bottom: 18px;
+    }
+
+    nav a {
+      display: inline-block;
+      margin-right: 12px;
+      color: #1a3c6e;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    .panel {
+      background: white;
+      padding: 18px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+    }
+
+    .credential-card {
+      background: white;
+      border-left: 4px solid #1a3c6e;
+      padding: 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+    }
+
+    .credential-card p {
+      margin: 8px 0;
+      overflow-wrap: anywhere;
+    }
+
+    button {
+      background-color: #1a3c6e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background-color: #142f57;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    .wallet-controls {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .wallet-controls label {
+      display: grid;
+      gap: 5px;
+      flex: 1 1 240px;
+      font-weight: bold;
+    }
+
+    .wallet-controls input {
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid #aeb8c5;
+      border-radius: 4px;
+      font: inherit;
+    }
+  </style>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="wallet-page">
+  <header class="topbar">
+    <a class="brand-lockup" href="/verify.html"><span class="brand-mark" aria-hidden="true">SC</span><span class="brand-copy"><span class="brand-name">Secure Academic Credential</span><span class="brand-subtitle">Verification System</span></span></a>
+    <nav class="topbar-links" aria-label="Main navigation"><a href="/index.html">Issuer dashboard</a><a href="/wallet.html" aria-current="page">Student wallet</a><a href="/verify.html">Public verifier</a></nav>
+  </header>
+  <main class="page-container">
+    <div class="page-heading"><div><p class="eyebrow">Student credential wallet</p><h1>Credentials held</h1><p>Review academic credentials and export their signed VC presentation.</p></div></div>
+    <section id="walletInfo" class="wallet-summary" aria-live="polite">
+      <article class="wallet-identity"><p class="eyebrow">Local demo DID</p><h2 id="walletStudentName">Wallet identity</h2><p>This local identifier is not a network-resolvable identity or proof of wallet ownership.</p><span id="studentDid" class="wallet-did">Enter a wallet ID to load the DID.</span></article>
+      <article class="panel"><div class="panel-heading"><div><h2>Open wallet</h2><p>Use the wallet identifier from the issuer's credential record.</p></div></div><div class="wallet-controls"><div class="field"><label for="walletIdInput">Wallet ID</label><input id="walletIdInput" name="walletId" autocomplete="off" placeholder="wallet:student-name"></div><button id="openWalletButton" type="button">Open wallet</button></div><p><span class="muted">Wallet service status</span> <span id="walletStatus" class="badge info">Not loaded</span></p></article>
+    </section>
+    <section class="section-block" aria-labelledby="walletCredentialsHeading"><div class="section-title-row"><div><p class="eyebrow">Verifiable credentials</p><h2 id="walletCredentialsHeading">Stored credentials</h2><p>Current status comes from the credential registry and blockchain proof.</p></div></div><div id="credentialsList" aria-live="polite"><p class="empty-state">Enter a wallet ID to load credentials.</p></div></section>
+  </main>
+
+  <script>
+    const walletIdInput = document.getElementById('walletIdInput');
+    const studentDidElement = document.getElementById('studentDid');
+    const walletStatusElement = document.getElementById('walletStatus');
+    const walletStudentNameElement = document.getElementById('walletStudentName');
+    const credentialsList = document.getElementById('credentialsList');
+    const openWalletButton = document.getElementById('openWalletButton');
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let body = null;
+
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch (error) {
+        body = null;
+      }
+
+      if (!response.ok) {
+        throw new Error((body && (body.error || body.message)) || 'Request failed.');
+      }
+
+      return body;
+    }
+
+    function renderCredentials(items) {
+      credentialsList.replaceChildren();
+
+      if (!Array.isArray(items) || items.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'No credentials stored in this wallet yet.';
+        credentialsList.appendChild(empty);
+        return;
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement('article');
+        card.className = 'wallet-credential-card';
+
+        const credential = item.vc || {};
+        const subject = credential.credentialSubject || {};
+        const statusValue = item.status || (credential.credentialStatus && credential.credentialStatus.status) || 'UNKNOWN';
+        const header = document.createElement('div');
+        header.className = 'wallet-credential-top';
+        const titleGroup = document.createElement('div');
+        const title = document.createElement('h3');
+        title.textContent = subject.degree || 'Academic credential';
+        const id = document.createElement('p');
+        id.className = 'mono muted small';
+        id.textContent = credential.credentialId || item.credentialId || 'Unknown';
+        titleGroup.append(title, id);
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (statusValue === 'VALID' ? 'valid' : statusValue === 'REVOKED' ? 'revoked' : 'warning');
+        badge.textContent = statusValue;
+        header.append(titleGroup, badge);
+
+        const facts = document.createElement('div');
+        facts.className = 'credential-facts';
+        const addFact = (label, value, monospace) => {
+          const fact = document.createElement('div');
+          fact.className = 'fact';
+          const caption = document.createElement('span');
+          caption.textContent = label;
+          const content = document.createElement('strong');
+          content.textContent = String(value || 'Not available');
+          if (monospace) content.className = 'mono';
+          fact.append(caption, content);
+          facts.appendChild(fact);
+        };
+        addFact('University', subject.university);
+        addFact('Graduation year', subject.graduationYear);
+        addFact('Issuer DID', credential.issuer, true);
+        addFact('Issued', credential.issuanceDate);
+        addFact('Blockchain status', item.blockchainStatus || 'UNKNOWN');
+
+        const actions = document.createElement('div');
+        actions.className = 'credential-card-actions';
+        const verifyButton = document.createElement('button');
+        verifyButton.type = 'button';
+        verifyButton.className = 'secondary';
+        verifyButton.textContent = 'Verify credential';
+        const verificationOutput = document.createElement('p');
+        verificationOutput.className = 'message';
+        verificationOutput.setAttribute('role', 'status');
+        verifyButton.addEventListener('click', async function () {
+          verifyButton.disabled = true;
+          verifyButton.textContent = 'Verifying...';
+          verificationOutput.textContent = 'Checking credential, VC, and blockchain...';
+          try {
+            const source = await requestJson('/api/credentials/' + encodeURIComponent(item.credentialId));
+            const result = await requestJson('/api/verify/' + encodeURIComponent(source.hash));
+            verificationOutput.textContent = result.result + ' · VC ' + (result.vc && result.vc.result || 'NOT_AVAILABLE') + ' · Blockchain ' + (result.blockchain && result.blockchain.result || 'NOT_AVAILABLE');
+            verificationOutput.dataset.state = result.result === 'VALID' ? 'success' : result.result === 'REVOKED' ? 'info' : 'error';
+          } catch (error) {
+            verificationOutput.textContent = error.message || 'Unable to verify credential.';
+            verificationOutput.dataset.state = 'error';
+          } finally {
+            verifyButton.disabled = false;
+            verifyButton.textContent = 'Verify credential';
+          }
+        });
+        const exportLink = document.createElement('a');
+        exportLink.className = 'button secondary';
+        exportLink.href = '/api/wallet/credentials/' + encodeURIComponent(item.id) + '/export';
+        exportLink.download = (credential.credentialId || 'credential') + '.json';
+        exportLink.textContent = 'Export VC JSON';
+        actions.append(verifyButton, exportLink);
+        card.append(header, facts, actions, verificationOutput);
+        credentialsList.appendChild(card);
+      });
+    }
+
+    async function loadWallet() {
+      const walletId = walletIdInput.value.trim();
+      if (!walletId) {
+        studentDidElement.textContent = 'Enter the wallet ID to continue.';
+        credentialsList.textContent = 'No wallet selected.';
+        return;
+      }
+
+      openWalletButton.disabled = true;
+      credentialsList.textContent = 'Loading credentials...';
+
+      try {
+        const wallet = await requestJson('/api/wallet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletId, studentName: walletId })
+        });
+
+        localStorage.setItem('academicCredentialWalletId', wallet.walletId);
+        studentDidElement.textContent = wallet.did;
+        walletStudentNameElement.textContent = wallet.studentName || 'Student wallet';
+        walletStatusElement.textContent = wallet.status || 'ACTIVE';
+        walletStatusElement.className = 'badge valid';
+
+        const credentials = await requestJson('/api/wallet/credentials?walletId=' + encodeURIComponent(wallet.walletId));
+        renderCredentials(credentials);
+      } catch (error) {
+        studentDidElement.textContent = 'Wallet DID unavailable.';
+        walletStatusElement.textContent = 'Unavailable';
+        walletStatusElement.className = 'badge warning';
+        const message = document.createElement('p');
+        message.className = 'empty-state';
+        message.textContent = error.message || 'Unable to load wallet data.';
+        credentialsList.replaceChildren(message);
+      } finally {
+        openWalletButton.disabled = false;
+      }
+    }
+
+    const queryWalletId = new URLSearchParams(window.location.search).get('walletId');
+    walletIdInput.value = queryWalletId || localStorage.getItem('academicCredentialWalletId') || '';
+    openWalletButton.addEventListener('click', loadWallet);
+    walletIdInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') loadWallet();
+    });
+    if (walletIdInput.value) loadWallet();
+  </script>
+</body>
+</html>

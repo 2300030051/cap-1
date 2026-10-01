@@ -1,0 +1,35 @@
+{
+  "name": "credential-project",
+  "version": "1.0.0",
+  "description": "Secure Academic Credential Verification Project",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "blockchain:node": "npx hardhat node --config blockchain/hardhat.config.js",
+    "blockchain:compile": "npx hardhat compile --config blockchain/hardhat.config.js",
+    "blockchain:deploy": "npx hardhat run blockchain/scripts/deploy.js --config blockchain/hardhat.config.js --network localhost",
+    "blockchain:test": "npx hardhat test --config blockchain/hardhat.config.js",
+    "test": "npm run blockchain:test && node --test tests/*.test.js"
+  },
+  "keywords": [],
+  "author": "Vishnu Reddy",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "better-sqlite3-session-store": "^0.1.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.17.0",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "hardhat": "^2.22.17",
+    "multer": "^2.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
+    "chai": "^4.5.0"
+  }
+}

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issuer Access | Secure Academic Credential Verification System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 420px;
+      margin: 64px auto;
+      padding: 0 20px;
+      background-color: #f5f7fa;
+      color: #222;
+    }
+
+    h1 {
+      color: #1a3c6e;
+      border-bottom: 3px solid #1a3c6e;
+      padding-bottom: 10px;
+    }
+
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #aeb7c2;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: 0;
+      border-radius: 4px;
+      background: #1a3c6e;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    #loginMessage[data-state="error"] {
+      color: #a12622;
+    }
+  </style>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="login-page">
+  <aside class="login-aside">
+    <a class="brand-lockup" href="/login.html" aria-label="Secure Academic Credential Verification System">
+      <span class="brand-mark" aria-hidden="true">SC</span>
+      <span class="brand-copy">
+        <span class="brand-name">Secure Academic Credential</span>
+        <span class="brand-subtitle">Verification System</span>
+      </span>
+    </a>
+    <div class="login-aside-copy">
+      <p class="eyebrow">Issuer workspace</p>
+      <h1>Credentials you can verify.</h1>
+      <p>Issue, anchor, and review academic credentials through a local verification workflow.</p>
+    </div>
+    <p class="login-aside-footer">Issuer access only · Local academic demonstration</p>
+  </aside>
+  <main class="login-main">
+    <section class="login-card" aria-labelledby="loginHeading">
+      <p class="eyebrow">Secure sign in</p>
+      <h2 id="loginHeading">Issuer login</h2>
+      <p>Sign in with your issuer account to manage credential records.</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-control">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button id="passwordVisibility" class="secondary" type="button" aria-pressed="false" aria-label="Show password">Show</button>
+          </div>
+        </div>
+        <button class="login-submit" type="submit">Sign in</button>
+      </form>
+      <p id="loginMessage" class="message" role="alert" aria-live="polite"></p>
+      <p class="field-hint">Issuer authentication does not authenticate student identity.</p>
+    </section>
+  </main>
+  <script>
+    const loginForm = document.getElementById("loginForm");
+    const loginMessage = document.getElementById("loginMessage");
+    const loginButton = loginForm.querySelector('button[type="submit"]');
+    const passwordInput = document.getElementById("password");
+    const passwordVisibility = document.getElementById("passwordVisibility");
+
+    passwordVisibility.addEventListener("click", function () {
+      const showing = passwordInput.type === "password";
+      passwordInput.type = showing ? "text" : "password";
+      passwordVisibility.textContent = showing ? "Hide" : "Show";
+      passwordVisibility.setAttribute("aria-pressed", String(showing));
+      passwordVisibility.setAttribute("aria-label", showing ? "Hide password" : "Show password");
+    });
+
+    loginForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      loginMessage.textContent = "";
+      loginMessage.dataset.state = "";
+      loginButton.disabled = true;
+      loginButton.textContent = "Signing in...";
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: loginForm.elements.username.value,
+            password: loginForm.elements.password.value
+          })
+        });
+
+        if (!response.ok) {
+          loginMessage.textContent = response.status === 401
+            ? "Invalid username or password."
+            : "Unable to log in right now. Please try again.";
+          loginMessage.dataset.state = "error";
+          return;
+        }
+
+        window.location.replace("/index.html");
+      } catch (error) {
+        loginMessage.textContent = "Unable to reach the login service. Please try again.";
+        loginMessage.dataset.state = "error";
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = "Sign in";
+      }
+    });
+
+    fetch("/api/auth/me")
+      .then(function (response) { return response.json(); })
+      .then(function (state) {
+        if (state.authenticated) {
+          window.location.replace("/index.html");
+        }
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

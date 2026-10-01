@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Public Verification | Secure Academic Credential Verification System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background-color: #f5f7fa;
+      color: #222;
+    }
+
+    h1 {
+      color: #1a3c6e;
+      border-bottom: 3px solid #1a3c6e;
+      padding-bottom: 10px;
+    }
+
+    .result-banner,
+    .credential-details {
+      background: white;
+      padding: 18px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .result-banner {
+      font-size: 20px;
+      font-weight: bold;
+      border-left: 5px solid #777;
+    }
+
+    .result-banner[data-state="valid"] {
+      color: #176b3a;
+      border-left-color: #176b3a;
+    }
+
+    .result-banner[data-state="revoked"],
+    .result-banner[data-state="invalid"],
+    .result-banner[data-state="error"] {
+      color: #a12622;
+      border-left-color: #a12622;
+    }
+
+    .credential-details dl {
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) 2fr;
+      gap: 10px 16px;
+      margin: 0;
+    }
+
+    .credential-details dt {
+      font-weight: bold;
+    }
+
+    .credential-details dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .blockchain-detail {
+      background: #f0f6ff;
+      border: 1px solid #d6e6ff;
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+
+    .blockchain-detail h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #1a3c6e;
+    }
+
+    .blockchain-detail ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .vc-detail {
+      background: #f3f8f4;
+      border: 1px solid #d7e8da;
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+
+    .vc-detail h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #176b3a;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        margin-top: 24px;
+      }
+
+      .credential-details dl {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .credential-details dd {
+        margin-bottom: 8px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="verify-page">
+  <main class="verify-shell">
+    <header class="verify-brand">
+      <span class="brand-mark" aria-hidden="true">SC</span>
+      <span class="brand-copy"><span class="brand-name">Secure Academic Credential</span><span class="brand-subtitle">Verification System · Public verifier</span></span>
+    </header>
+    <div class="verify-intro">
+      <p class="eyebrow">Public verification</p>
+      <h1>Academic credential verification</h1>
+      <p>Independent checks of credential integrity, issuer proof, and current status.</p>
+    </div>
+    <section id="verificationBanner" class="result-banner" data-state="pending" role="status" aria-live="polite">
+      <span id="resultSymbol" class="result-symbol" aria-hidden="true">...</span>
+      <div><h2 id="resultLabel">Verifying credential...</h2><p id="resultDetail" class="muted small">Checking credential data and proofs.</p></div>
+    </section>
+    <div class="verify-grid">
+      <section id="credentialDetails" class="panel verify-panel" aria-label="Credential information" hidden>
+        <p class="eyebrow">Credential information</p><h2>Academic record</h2>
+        <dl id="credentialFields" class="data-list"></dl>
+      </section>
+      <section id="statusDetails" class="panel verify-panel" aria-label="Credential status" hidden>
+        <p class="eyebrow">Current record</p><h2>Credential status</h2>
+        <p id="credentialStatusText"></p>
+      </section>
+      <section id="vcDetails" class="panel verify-panel" aria-label="Cryptographic verification" hidden>
+        <p class="eyebrow">Cryptographic verification</p><h2>Verifiable Credential</h2>
+        <ul id="vcChecks" class="check-list"></ul>
+      </section>
+      <section id="blockchainDetails" class="panel verify-panel" aria-label="Blockchain verification" hidden>
+        <p class="eyebrow">Immutable proof</p><h2>Blockchain verification</h2>
+        <ul id="blockchainChecks" class="check-list"></ul>
+      </section>
+    </div>
+    <p class="verify-footer">Public verification does not require issuer login. AI document analysis is separate and is not a cryptographic proof.</p>
+  </main>
+  <script>
+    const verificationBanner = document.getElementById("verificationBanner");
+    const credentialDetails = document.getElementById("credentialDetails");
+    const credentialFields = document.getElementById("credentialFields");
+    const blockchainDetails = document.getElementById("blockchainDetails");
+    const blockchainChecks = document.getElementById("blockchainChecks");
+    const vcDetails = document.getElementById("vcDetails");
+    const vcChecks = document.getElementById("vcChecks");
+    const statusDetails = document.getElementById("statusDetails");
+    const credentialStatusText = document.getElementById("credentialStatusText");
+    const resultSymbol = document.getElementById("resultSymbol");
+    const resultLabel = document.getElementById("resultLabel");
+    const resultDetail = document.getElementById("resultDetail");
+
+    function setBanner(message, state) {
+      verificationBanner.dataset.state = state;
+      resultLabel.textContent = message;
+      resultSymbol.textContent = state === "valid" ? "✓" : state === "pending" ? "..." : state === "not-found" ? "?" : "!";
+    }
+
+    async function requestJson(url) {
+      const response = await fetch(url);
+      let body = null;
+
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = null;
+      }
+
+      if (!response.ok) {
+        const error = new Error(response.status === 404 ? "Credential not found." : "Verification request failed.");
+        error.status = response.status;
+        throw error;
+      }
+
+      return body;
+    }
+
+    function renderCredential(credential, verification) {
+      const states = {
+        VALID: { label: "CREDENTIAL VERIFIED", state: "valid", detail: "Credential integrity, VC binding, and blockchain proof passed." },
+        REVOKED: { label: "CREDENTIAL REVOKED", state: "revoked", detail: "This credential is revoked in the application record or on-chain proof." },
+        INVALID: { label: "CREDENTIAL INVALID", state: "invalid", detail: "Credential data or a required proof did not match." },
+        VC_SIGNATURE_INVALID: { label: "VC SIGNATURE INVALID", state: "invalid", detail: "The signed credential or its registered identity binding did not verify." },
+        BLOCKCHAIN_VERIFICATION_FAILED: { label: "BLOCKCHAIN VERIFICATION FAILED", state: "error", detail: "The local blockchain proof could not be confirmed." }
+      };
+      const result = states[verification.result] || states.INVALID;
+      setBanner(result.label, result.state);
+      resultDetail.textContent = result.detail;
+      credentialFields.replaceChildren();
+
+      [
+        ["Student name", credential.studentName],
+        ["Degree", credential.degree],
+        ["University", credential.university],
+        ["Graduation year", credential.graduationYear],
+        ["Credential ID", credential.id],
+        ["Issue date", credential.issuedAt],
+        ["Status", verification.status || credential.status]
+      ].forEach(function ([label, value]) {
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const description = document.createElement("dd");
+        description.textContent = value;
+        credentialFields.append(term, description);
+      });
+
+      const blockchain = verification.blockchain || {};
+      const blockchainChecksList = [
+        ["Blockchain record found", blockchain.exists ? "✓ Yes" : "✕ No"],
+        ["Credential hash matches", blockchain.matchesHash ? "✓ Yes" : "✕ No"],
+        ["Issuer verified", blockchain.issuer ? "✓ Yes" : "✕ No"],
+        ["Blockchain status", blockchain.result || "BLOCKCHAIN_VERIFICATION_FAILED"]
+      ];
+
+      blockchainChecks.replaceChildren();
+      blockchainChecksList.forEach(function ([label, value]) {
+        const listItem = document.createElement("li");
+        listItem.textContent = label + ": " + value;
+        blockchainChecks.appendChild(listItem);
+      });
+
+      const vc = verification.vc || {};
+      const vcChecksList = [
+        ["VC signature", vc.signatureValid ? "VALID" : (vc.result === "VC_SIGNATURE_INVALID" ? "INVALID" : "NOT AVAILABLE")],
+        ["Credential binding", vc.credentialBindingValid ? "MATCH" : (vc.result === "VC_SIGNATURE_INVALID" ? "MISMATCH" : "NOT CHECKED")],
+        ["Issuer DID", vc.issuerDid || "Not available"],
+        ["Student DID", vc.studentDid || "Not available"]
+      ];
+
+      vcChecks.replaceChildren();
+      vcChecksList.forEach(function ([label, value]) {
+        const listItem = document.createElement("li");
+        listItem.textContent = label + ": " + value;
+        vcChecks.appendChild(listItem);
+      });
+
+      blockchainDetails.hidden = false;
+      vcDetails.hidden = false;
+      statusDetails.hidden = false;
+      credentialStatusText.textContent = verification.status || credential.status || "UNKNOWN";
+      credentialDetails.hidden = false;
+    }
+
+    async function verifyFromUrl() {
+      const credentialId = new URLSearchParams(window.location.search).get("id");
+      if (!credentialId) {
+        setBanner("CREDENTIAL NOT FOUND", "not-found");
+        resultDetail.textContent = "No credential ID was provided in the verification link.";
+        return;
+      }
+
+      try {
+        const credential = await requestJson(
+          "/api/credentials/" + encodeURIComponent(credentialId)
+        );
+        const verification = await requestJson(
+          "/api/verify/" + encodeURIComponent(credential.hash)
+        );
+        renderCredential(credential, verification);
+      } catch (error) {
+        if (error.status === 404) {
+          setBanner("CREDENTIAL NOT FOUND", "not-found");
+          resultDetail.textContent = "No matching credential was found.";
+        } else {
+          setBanner("VERIFICATION UNAVAILABLE", "error");
+          resultDetail.textContent = "The verification request could not be completed. Please retry later.";
+        }
+      }
+    }
+
+    verifyFromUrl();
+  </script>
+</body>
+</html>
