@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issuer Dashboard | Secure Academic Credential Verification System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background-color: #f5f7fa;
+      color: #222;
+    }
+
+    h1 {
+      color: #1a3c6e;
+      border-bottom: 3px solid #1a3c6e;
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      color: #1a3c6e;
+      margin-top: 30px;
+    }
+
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 18px;
+      padding: 10px 20px;
+      background-color: #1a3c6e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    button:hover {
+      background-color: #142f57;
+    }
+
+    .credential-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+      border-left: 4px solid #1a3c6e;
+    }
+
+    .credential-card h3 {
+      margin-top: 0;
+    }
+
+    .credential-card p {
+      overflow-wrap: anywhere;
+    }
+
+    .message[data-state="error"] {
+      color: #a12622;
+    }
+
+    .message[data-state="success"] {
+      color: #176b3a;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 14px;
+      border-left: 4px solid #1a3c6e;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .stat-card span,
+    .stat-card strong {
+      display: block;
+    }
+
+    .stat-card strong {
+      margin-top: 6px;
+      font-size: 24px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #e1e5ea;
+      overflow-wrap: anywhere;
+    }
+
+    .credential-qr {
+      margin-top: 14px;
+    }
+
+    .credential-qr img {
+      display: block;
+      width: 220px;
+      height: 220px;
+      max-width: 100%;
+      object-fit: contain;
+      background: white;
+    }
+
+    .credential-qr a {
+      display: inline-block;
+      margin-top: 8px;
+    }
+
+    .analysis-result {
+      background: #f3f8f4;
+      border-left: 4px solid #176b3a;
+      padding: 14px;
+      margin: 12px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .analysis-result[data-classification="SUSPICIOUS"] {
+      border-left-color: #a12622;
+    }
+
+    .analysis-result[data-classification="REVIEW_REQUIRED"] {
+      border-left-color: #9a6500;
+    }
+
+    .analysis-result ul {
+      padding-left: 22px;
+    }
+
+    .analysis-history button {
+      margin: 4px 8px 4px 0;
+    }
+
+    .analysis-details {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="app-shell" hidden>
+  <header class="topbar">
+    <a class="brand-lockup" href="/index.html" aria-label="Secure Academic Credential Verification System dashboard">
+      <span class="brand-mark" aria-hidden="true">SC</span>
+      <span class="brand-copy">
+        <span class="brand-name">Secure Academic Credential</span>
+        <span class="brand-subtitle">Verification System</span>
+      </span>
+    </a>
+    <div class="topbar-actions">
+      <nav class="topbar-links" aria-label="Issuer navigation">
+        <a href="#credentialRegistry" aria-current="page">Credentials</a>
+        <a href="#documentAnalysis">Document analysis</a>
+        <a href="/wallet.html">Student wallet</a>
+      </nav>
+      <p class="identity-chip"><strong id="issuerIdentity">Signed in</strong><span id="issuerRole" class="badge info">ISSUER</span></p>
+      <button id="logoutButton" class="secondary" type="button">Log out</button>
+    </div>
+  </header>
+  <main class="page-container">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Issuer workspace</p>
+        <h1>Credential operations</h1>
+        <p>Issue academic records, review document indicators, and verify credential proofs.</p>
+      </div>
+      <a class="button secondary" href="/verify.html">Open public verifier</a>
+    </div>
+
+    <section aria-labelledby="dashboardHeading">
+      <div class="section-title-row">
+        <div><h2 id="dashboardHeading">System overview</h2><p>Live counts from the credential registry.</p></div>
+        <p id="dashboardMessage" class="message" role="status" aria-live="polite"></p>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><span>Total credentials</span><strong id="totalCredentials">...</strong></div>
+        <div class="stat-card"><span>Valid</span><strong id="validCredentials">...</strong></div>
+        <div class="stat-card"><span>Revoked</span><strong id="revokedCredentials">...</strong></div>
+        <div class="stat-card"><span>Verifications</span><strong id="totalVerifications">...</strong></div>
+      </div>
+    </section>
+
+    <section class="section-block dashboard-columns" aria-label="Credential creation and analysis">
+      <article class="panel" aria-labelledby="issueHeading">
+        <div class="panel-heading"><div><p class="eyebrow">New record</p><h2 id="issueHeading">Issue credential</h2><p>Anchors a credential hash and creates a signed VC.</p></div></div>
+        <form id="credentialForm" class="dashboard-form">
+          <div class="field"><label for="studentName">Student name</label><input type="text" id="studentName" name="studentName" maxlength="200" autocomplete="off" required></div>
+          <div class="field"><label for="degree">Degree</label><input type="text" id="degree" name="degree" maxlength="200" required></div>
+          <div class="field full"><label for="university">University</label><input type="text" id="university" name="university" maxlength="200" required></div>
+          <div class="field"><label for="graduationYear">Graduation year</label><input type="number" id="graduationYear" name="graduationYear" min="1000" max="9999" step="1" required></div>
+          <div class="field full form-actions"><button type="submit">Issue credential</button><span class="field-hint">Local blockchain proof · Ed25519 VC</span></div>
+        </form>
+        <p id="formMessage" class="message" role="status" aria-live="polite"></p>
+        <section id="issuedCredentialSummary" class="result-callout" hidden aria-live="polite">
+          <h3>Credential issued</h3>
+          <p><strong>Credential ID:</strong> <span id="issuedCredentialId" class="mono"></span></p>
+          <p><strong>Blockchain:</strong> <span id="issuedBlockchainStatus"></span></p>
+          <p><strong>Transaction:</strong> <span id="issuedTransaction" class="mono"></span></p>
+          <p><strong>Verification hash:</strong> <span id="issuedCredentialHash" class="mono"></span></p>
+          <div class="qr-card">
+            <img id="issuedQrImage" width="96" height="96" alt="QR code for public credential verification">
+            <div class="qr-copy"><p>Scan to open public verification. The QR contains a verification link, not personal data.</p><div class="qr-links"><a id="issuedVerifyLink" href="/verify.html">Open verification</a><a id="issuedQrDownload" href="#" download>Download QR</a><a id="issuedWalletLink" href="/wallet.html">Open student wallet</a></div></div>
+          </div>
+        </section>
+      </article>
+
+      <article id="documentAnalysis" class="panel" aria-labelledby="aiAnalysisHeading">
+        <div class="panel-heading"><div><p class="eyebrow">Local document checks</p><h2 id="aiAnalysisHeading">Document authenticity analysis</h2><p>Deterministic indicators; not proof of authenticity.</p></div></div>
+        <form id="aiAnalysisForm" class="dashboard-form" enctype="multipart/form-data">
+          <div class="field"><label for="analysisCredentialId">Credential</label><select id="analysisCredentialId" name="credentialId" required><option value="">Select a credential</option></select></div>
+          <div class="field"><label for="academicDocument">Academic document</label><input id="academicDocument" name="document" type="file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" required><p class="field-hint">PDF, PNG, or JPEG · Maximum 10 MB · Processed locally</p></div>
+          <div class="field full form-actions"><button id="analyzeDocumentButton" type="submit">Analyze document</button></div>
+        </form>
+        <p id="aiAnalysisMessage" class="message" role="status" aria-live="polite"></p>
+        <article id="aiAnalysisResult" class="analysis-result" hidden aria-live="polite">
+          <p class="eyebrow">Document authenticity analysis</p>
+          <h3 id="aiAnalysisSummary"></h3>
+          <p id="aiAnalysisDisclaimer" class="muted small"></p>
+          <div class="analysis-score"><div id="aiScore" class="score-value">--<span>out of 100</span></div><div class="score-track" role="meter" aria-label="Document analysis score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="aiScoreFill" class="score-fill" style="width:0%"></div></div></div>
+          <div class="analysis-columns">
+            <section class="analysis-subsection"><h4>Detected indicators</h4><ul id="aiAnalysisIndicators"></ul></section>
+            <section class="analysis-subsection"><h4>Warnings</h4><ul id="aiAnalysisWarnings"></ul></section>
+            <section class="analysis-subsection"><h4>Credential field matches</h4><div id="aiAnalysisFieldMatches"></div></section>
+            <section class="analysis-subsection"><h4>Cryptographic verification</h4><ul id="aiAnalysisCrypto"></ul></section>
+          </div>
+          <details><summary>Detailed document checks</summary><pre id="aiAnalysisDetails" class="analysis-details"></pre></details>
+        </article>
+        <div class="section-block"><div class="section-title-row"><div><h3>Analysis history</h3><p>Saved results for the selected credential.</p></div></div><div id="aiAnalysisHistory" class="analysis-history" aria-live="polite">Select a credential to view its analyses.</div></div>
+      </article>
+    </section>
+
+    <section id="credentialRegistry" class="section-block" aria-labelledby="registryHeading">
+      <div class="section-title-row"><div><p class="eyebrow">Registry</p><h2 id="registryHeading">Issued credentials</h2><p>Credential status and available actions.</p></div></div>
+      <p id="listMessage" class="message" role="status" aria-live="polite"></p>
+      <div id="credentialList" class="credential-list" aria-live="polite"><p class="empty-state">Loading credentials...</p></div>
+    </section>
+
+    <section class="section-block dashboard-columns" aria-label="Manual verification and activity">
+      <article class="panel" aria-labelledby="manualVerifyHeading">
+        <div class="panel-heading"><div><p class="eyebrow">Issuer check</p><h2 id="manualVerifyHeading">Verify credential</h2><p>Review integrity, VC, and blockchain results.</p></div></div>
+        <form id="verificationForm" class="dashboard-form">
+          <div class="field"><label for="verificationCredentialId">Credential ID</label><input type="text" id="verificationCredentialId" name="credentialId" autocomplete="off" required></div>
+          <div class="field form-actions"><button type="submit">Verify</button></div>
+        </form>
+        <p id="verificationMessage" class="message" role="status" aria-live="polite"></p>
+        <div id="verificationResult" aria-live="polite"></div>
+      </article>
+      <section aria-labelledby="recentActivityHeading">
+        <div class="section-title-row"><div><p class="eyebrow">Audit trail</p><h2 id="recentActivityHeading">Recent verification activity</h2></div></div>
+        <p id="activityMessage" class="message" role="status" aria-live="polite"></p>
+        <div class="table-wrap"><table><thead><tr><th scope="col">Credential reference</th><th scope="col">Result</th><th scope="col">Timestamp</th></tr></thead><tbody id="recentVerificationList"></tbody></table></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    let credentials = [];
+    const form = document.getElementById("credentialForm");
+    const listDiv = document.getElementById("credentialList");
+    const formMessage = document.getElementById("formMessage");
+    const submitButton = form.querySelector('button[type="submit"]');
+    const listMessage = document.getElementById("listMessage");
+    const verificationForm = document.getElementById("verificationForm");
+    const verificationMessage = document.getElementById("verificationMessage");
+    const verificationResult = document.getElementById("verificationResult");
+    const verificationButton = verificationForm.querySelector('button[type="submit"]');
+    const dashboardMessage = document.getElementById("dashboardMessage");
+    const activityMessage = document.getElementById("activityMessage");
+    const recentVerificationList = document.getElementById("recentVerificationList");
+    const issuerIdentity = document.getElementById("issuerIdentity");
+    const logoutButton = document.getElementById("logoutButton");
+    const aiAnalysisForm = document.getElementById("aiAnalysisForm");
+    const analysisCredentialId = document.getElementById("analysisCredentialId");
+    const academicDocument = document.getElementById("academicDocument");
+    const analyzeDocumentButton = document.getElementById("analyzeDocumentButton");
+    const aiAnalysisMessage = document.getElementById("aiAnalysisMessage");
+    const aiAnalysisResult = document.getElementById("aiAnalysisResult");
+    const aiAnalysisHistory = document.getElementById("aiAnalysisHistory");
+    const issuedCredentialSummary = document.getElementById("issuedCredentialSummary");
+    const issuedCredentialId = document.getElementById("issuedCredentialId");
+    const issuedBlockchainStatus = document.getElementById("issuedBlockchainStatus");
+    const issuedTransaction = document.getElementById("issuedTransaction");
+    const issuedCredentialHash = document.getElementById("issuedCredentialHash");
+    const issuedQrImage = document.getElementById("issuedQrImage");
+    const issuedVerifyLink = document.getElementById("issuedVerifyLink");
+    const issuedQrDownload = document.getElementById("issuedQrDownload");
+    const issuedWalletLink = document.getElementById("issuedWalletLink");
+
+    function setMessage(element, message, state) {
+      element.textContent = message;
+      element.dataset.state = state || "";
+    }
+
+    async function loadDashboardStats() {
+      try {
+        const stats = await requestJson("/api/dashboard/stats");
+        document.getElementById("totalCredentials").textContent = String(stats.totalCredentials);
+        document.getElementById("validCredentials").textContent = String(stats.validCredentials);
+        document.getElementById("revokedCredentials").textContent = String(stats.revokedCredentials);
+        document.getElementById("totalVerifications").textContent = String(stats.totalVerifications);
+        setMessage(dashboardMessage, "", "");
+      } catch (error) {
+        setMessage(dashboardMessage, "Unable to load dashboard statistics.", "error");
+      }
+    }
+
+    async function loadRecentVerifications() {
+      try {
+        const records = await requestJson("/api/verifications/recent");
+        if (!Array.isArray(records)) {
+          throw new Error("The server returned an unexpected response.");
+        }
+
+        recentVerificationList.replaceChildren();
+        if (records.length === 0) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 3;
+          cell.textContent = "No verification activity yet.";
+          row.appendChild(cell);
+          recentVerificationList.appendChild(row);
+        } else {
+          records.forEach(function (record) {
+            const row = document.createElement("tr");
+            const referenceCell = document.createElement("td");
+            referenceCell.textContent = record.credentialId === "UNKNOWN" ? "Unknown credential" : record.credentialId;
+            referenceCell.className = "mono";
+            const resultCell = document.createElement("td");
+            resultCell.appendChild(createBadge(record.result, record.result));
+            const timeCell = document.createElement("td");
+            timeCell.textContent = record.verified_at;
+            row.append(referenceCell, resultCell, timeCell);
+            recentVerificationList.appendChild(row);
+          });
+        }
+
+        setMessage(activityMessage, "", "");
+      } catch (error) {
+        recentVerificationList.replaceChildren();
+        setMessage(activityMessage, "Unable to load recent verification activity.", "error");
+      }
+    }
+
+    async function refreshDashboard() {
+      await Promise.all([loadDashboardStats(), loadRecentVerifications()]);
+    }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, options);
+      let body = null;
+
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = null;
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.replace("/login.html");
+        }
+        throw new Error(body && (body.error || body.message) || "The request could not be completed.");
+      }
+
+      return body;
+    }
+
+    function renderCredentials() {
+      listDiv.replaceChildren();
+      const previousCredentialId = analysisCredentialId.value;
+      analysisCredentialId.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select a credential";
+      analysisCredentialId.appendChild(placeholder);
+
+      credentials.forEach(function (credential) {
+        const option = document.createElement("option");
+        option.value = credential.id;
+        option.textContent = credential.studentName + " - " + credential.degree + " (" + credential.id + ")";
+        analysisCredentialId.appendChild(option);
+      });
+      if (credentials.some(function (credential) { return credential.id === previousCredentialId; })) {
+        analysisCredentialId.value = previousCredentialId;
+      }
+
+      if (credentials.length === 0) {
+        const emptyMessage = document.createElement("p");
+        emptyMessage.className = "empty-state";
+        emptyMessage.textContent = "No credentials issued yet.";
+        listDiv.appendChild(emptyMessage);
+        return;
+      }
+
+      credentials.forEach(function (credential) {
+        const card = document.createElement("article");
+        card.className = "credential-card";
+
+        const cardHeader = document.createElement("div");
+        cardHeader.className = "credential-card-header";
+        const titleGroup = document.createElement("div");
+        const heading = document.createElement("h3");
+        heading.textContent = credential.studentName;
+        const subheading = document.createElement("p");
+        subheading.textContent = credential.degree;
+        titleGroup.append(heading, subheading);
+        const statusGroup = document.createElement("div");
+        statusGroup.className = "credential-status-group";
+        statusGroup.append(createBadge(credential.status, credential.status));
+        statusGroup.append(createBadge(credential.blockchainStatus || "NOT_ANCHORED", credential.blockchainStatus || "NOT_ANCHORED"));
+        cardHeader.append(titleGroup, statusGroup);
+        card.appendChild(cardHeader);
+
+        const facts = document.createElement("div");
+        facts.className = "credential-facts";
+        [
+          ["University", credential.university],
+          ["Graduation year", credential.graduationYear],
+          ["Credential ID", credential.id],
+          ["Issued", credential.issuedAt],
+          ["Verification hash", credential.hash],
+          ["Transaction", credential.blockchainTxHash || "Not available"]
+        ].forEach(function ([label, value]) {
+          const fact = document.createElement("div");
+          fact.className = "fact";
+          const caption = document.createElement("span");
+          caption.textContent = label;
+          const text = document.createElement("strong");
+          text.textContent = String(value || "Not available");
+          if (label === "Credential ID" || label === "Verification hash" || label === "Transaction") text.className = "mono";
+          fact.append(caption, text);
+          facts.appendChild(fact);
+        });
+        card.appendChild(facts);
+
+        const verificationUrl = new URL("/verify.html", window.location.origin);
+        verificationUrl.searchParams.set("id", credential.id);
+
+        const qrSection = document.createElement("div");
+        qrSection.className = "qr-card";
+        const qrImage = document.createElement("img");
+        qrImage.src = "/api/credentials/" + encodeURIComponent(credential.id) + "/qr";
+        qrImage.alt = "QR code opening public verification for credential " + credential.id;
+        qrImage.width = 96;
+        qrImage.height = 96;
+        qrImage.loading = "lazy";
+
+        const qrCopy = document.createElement("div");
+        qrCopy.className = "qr-copy";
+        const scanLabel = document.createElement("p");
+        scanLabel.textContent = "Scan to open public verification.";
+        const qrLinks = document.createElement("div");
+        qrLinks.className = "qr-links";
+        const verificationLink = document.createElement("a");
+        verificationLink.href = verificationUrl.toString();
+        verificationLink.textContent = "Open verification";
+        const downloadQr = document.createElement("a");
+        downloadQr.href = qrImage.src;
+        downloadQr.download = "credential-" + credential.id + "-qr.png";
+        downloadQr.textContent = "Download QR";
+
+        const walletUrl = new URL("/wallet.html", window.location.origin);
+        walletUrl.searchParams.set("walletId", "wallet:" + credential.studentName);
+
+        const walletLink = document.createElement("a");
+        walletLink.href = walletUrl.toString();
+        walletLink.textContent = "Student wallet";
+
+        qrLinks.append(verificationLink, downloadQr, walletLink);
+        qrCopy.append(scanLabel, qrLinks);
+        qrSection.append(qrImage, qrCopy);
+        card.appendChild(qrSection);
+
+        const actions = document.createElement("div");
+        actions.className = "credential-card-actions";
+        const copyIdButton = document.createElement("button");
+        copyIdButton.type = "button";
+        copyIdButton.className = "secondary";
+        copyIdButton.textContent = "Copy ID";
+        copyIdButton.addEventListener("click", function () { copyToClipboard(credential.id, copyIdButton); });
+        const copyHashButton = document.createElement("button");
+        copyHashButton.type = "button";
+        copyHashButton.className = "secondary";
+        copyHashButton.textContent = "Copy hash";
+        copyHashButton.addEventListener("click", function () { copyToClipboard(credential.hash, copyHashButton); });
+        actions.append(copyIdButton, copyHashButton);
+
+        if (credential.status === "VALID") {
+          const revokeButton = document.createElement("button");
+          revokeButton.type = "button";
+          revokeButton.className = "danger";
+          revokeButton.textContent = "Revoke";
+          revokeButton.addEventListener("click", function () {
+            revokeCredential(credential.id, revokeButton);
+          });
+          actions.appendChild(revokeButton);
+        }
+
+        card.appendChild(actions);
+        listDiv.appendChild(card);
+      });
+    }
+
+    function createBadge(text, value) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      const normalized = String(value || "").toUpperCase();
+      badge.classList.add(normalized === "VALID" || normalized === "ANCHORED" ? "valid" : normalized === "REVOKED" || normalized === "INVALID" ? "revoked" : normalized.includes("FAILED") ? "warning" : "info");
+      badge.textContent = String(text || "UNKNOWN").replaceAll("_", " ");
+      return badge;
+    }
+
+    async function copyToClipboard(value, button) {
+      const originalText = button.textContent;
+      try {
+        await navigator.clipboard.writeText(String(value));
+        button.textContent = "Copied";
+        window.setTimeout(function () { button.textContent = originalText; }, 1400);
+      } catch (error) {
+        setMessage(listMessage, "Copy is unavailable in this browser context.", "error");
+      }
+    }
+
+    async function revokeCredential(id, button) {
+      if (!window.confirm("Revoke this credential? This action cannot be undone.")) {
+        return;
+      }
+
+      button.disabled = true;
+      const originalText = button.textContent;
+      button.textContent = "Revoking...";
+      setMessage(listMessage, "", "");
+
+      try {
+        const updatedCredential = await requestJson(
+          "/api/credentials/" + encodeURIComponent(id) + "/revoke",
+          { method: "PATCH" }
+        );
+
+        credentials = credentials.map(function (credential) {
+          return credential.id === updatedCredential.id ? updatedCredential : credential;
+        });
+        renderCredentials();
+        setMessage(listMessage, "Credential revoked successfully.", "success");
+        refreshDashboard();
+      } catch (error) {
+        setMessage(listMessage, "Unable to revoke credential. Please try again.", "error");
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function renderVerification(credential, verification) {
+      verificationResult.replaceChildren();
+
+      const card = document.createElement("article");
+      card.className = "result-callout";
+      let result = { label: "CREDENTIAL INVALID", state: "error", symbol: "×" };
+      if (verification.result === "VALID") result = { label: "CREDENTIAL VERIFIED", state: "success", symbol: "✓" };
+      else if (verification.result === "REVOKED") result = { label: "CREDENTIAL REVOKED", state: "error", symbol: "!" };
+      else if (verification.result === "NOT_FOUND") result = { label: "CREDENTIAL NOT FOUND", state: "error", symbol: "!" };
+      else if (verification.result === "VC_SIGNATURE_INVALID") result = { label: "VC SIGNATURE INVALID", state: "error", symbol: "×" };
+      else if (verification.result === "BLOCKCHAIN_VERIFICATION_FAILED") result = { label: "BLOCKCHAIN VERIFICATION FAILED", state: "error", symbol: "!" };
+      card.dataset.state = result.state;
+
+      const heading = document.createElement("h3");
+      heading.textContent = result.symbol + "  " + result.label;
+      card.appendChild(heading);
+      const status = document.createElement("p");
+      status.textContent = "Credential status: " + (verification.status || credential.status || "UNKNOWN");
+      card.appendChild(status);
+      const facts = document.createElement("div");
+      facts.className = "credential-facts";
+      [
+        ["Student", credential.studentName],
+        ["Degree", credential.degree],
+        ["University", credential.university],
+        ["Graduation year", credential.graduationYear],
+        ["Credential ID", credential.id],
+        ["Issued", credential.issuedAt]
+      ].forEach(function ([label, value]) {
+        const fact = document.createElement("div");
+        fact.className = "fact";
+        const caption = document.createElement("span");
+        caption.textContent = label;
+        const text = document.createElement("strong");
+        text.textContent = String(value || "Not available");
+        fact.append(caption, text);
+        facts.appendChild(fact);
+      });
+      card.appendChild(facts);
+
+      const checks = document.createElement("p");
+      const vc = verification.vc || {};
+      const blockchain = verification.blockchain || {};
+      checks.textContent = "VC signature: " + (vc.result || "NOT_AVAILABLE") +
+        " · Binding: " + (vc.credentialBindingValid ? "MATCH" : vc.result === "VC_SIGNATURE_INVALID" ? "MISMATCH" : "NOT_CHECKED") +
+        " · Blockchain: " + (blockchain.result || "BLOCKCHAIN_VERIFICATION_FAILED") +
+        " · Hash match: " + (blockchain.matchesHash ? "YES" : "NO");
+      card.appendChild(checks);
+
+      verificationResult.appendChild(card);
+    }
+
+    async function loadCredentials() {
+      listDiv.textContent = "Loading credentials...";
+
+      try {
+        const result = await requestJson("/api/credentials");
+        if (!Array.isArray(result)) {
+          throw new Error("The server returned an unexpected response.");
+        }
+        credentials = result;
+        setMessage(listMessage, "", "");
+        renderCredentials();
+        if (analysisCredentialId.value) loadAiAnalysisHistory();
+      } catch (error) {
+        listDiv.replaceChildren();
+        const errorMessage = document.createElement("p");
+        errorMessage.className = "message";
+        errorMessage.dataset.state = "error";
+        errorMessage.textContent = "Unable to load credentials. Please try again.";
+
+        const retryButton = document.createElement("button");
+        retryButton.type = "button";
+        retryButton.textContent = "Retry";
+        retryButton.addEventListener("click", loadCredentials);
+
+        listDiv.append(errorMessage, retryButton);
+      }
+    }
+
+    function appendAnalysisList(target, items, emptyText) {
+      target.replaceChildren();
+      if (!items || items.length === 0) {
+        const item = document.createElement("li");
+        item.textContent = emptyText;
+        target.appendChild(item);
+        return;
+      }
+      items.forEach(function (item) {
+        const row = document.createElement("li");
+        row.textContent = item;
+        target.appendChild(row);
+      });
+    }
+
+    function renderAiAnalysis(analysis) {
+      aiAnalysisResult.hidden = false;
+      aiAnalysisResult.dataset.classification = analysis.classification || "";
+      document.getElementById("aiAnalysisSummary").textContent =
+        "Document analysis · " + analysis.classification;
+      const score = Number.isFinite(Number(analysis.score)) ? Math.max(0, Math.min(100, Number(analysis.score))) : 0;
+      document.getElementById("aiScore").firstChild.textContent = String(score);
+      const scoreTrack = document.querySelector('[role="meter"][aria-label="Document analysis score"]');
+      scoreTrack.setAttribute("aria-valuenow", String(score));
+      scoreTrack.setAttribute("aria-valuetext", score + " out of 100");
+      document.getElementById("aiScoreFill").style.width = score + "%";
+      document.getElementById("aiAnalysisDisclaimer").textContent =
+        analysis.finalAssessment && analysis.finalAssessment.disclaimer || "This assessment is an indicator, not proof of document authenticity.";
+
+      appendAnalysisList(
+        document.getElementById("aiAnalysisIndicators"),
+        (analysis.indicators || []).map(function (indicator) { return indicator.status + ": " + indicator.message; }),
+        "No indicators were produced."
+      );
+      appendAnalysisList(document.getElementById("aiAnalysisWarnings"), analysis.warnings || [], "No warnings.");
+
+      const fieldMatches = document.getElementById("aiAnalysisFieldMatches");
+      fieldMatches.replaceChildren();
+      const matches = analysis.documentAnalysis && analysis.documentAnalysis.fieldMatches;
+      if (!matches) {
+        fieldMatches.textContent = "No credential field comparison was requested.";
+      } else {
+        Object.entries(matches).forEach(function ([name, match]) {
+          const line = document.createElement("p");
+          line.textContent = name + ": expected " + match.expected + "; detected " +
+            (match.detected || "not detected") + "; " + (match.match ? "MATCH" : match.extractionAvailable ? "MISMATCH" : "NOT COMPARED");
+          fieldMatches.appendChild(line);
+        });
+      }
+
+      const crypto = analysis.cryptographicVerification || {};
+      appendAnalysisList(document.getElementById("aiAnalysisCrypto"), [
+        "VC signature: " + (crypto.vcSignature && crypto.vcSignature.result || "NOT_AVAILABLE"),
+        "Credential binding: " + (crypto.credentialBinding && crypto.credentialBinding.result || "NOT_AVAILABLE"),
+        "Blockchain proof: " + (crypto.blockchainProof && crypto.blockchainProof.result || "NOT_AVAILABLE"),
+        "Credential status: " + (crypto.credentialStatus || "NOT_AVAILABLE")
+      ], "Cryptographic checks unavailable.");
+      const scoreValue = document.getElementById("aiScore");
+      const scoreCaption = scoreValue.querySelector("span");
+      scoreCaption.textContent = "document score / 100";
+      document.getElementById("aiAnalysisDetails").textContent = JSON.stringify({
+        file: analysis.documentAnalysis && {
+          hash: analysis.documentAnalysis.fileHash,
+          type: analysis.documentAnalysis.fileType,
+          sizeBytes: analysis.documentAnalysis.fileSizeBytes,
+          metadata: analysis.documentAnalysis.metadata,
+          textExtraction: analysis.documentAnalysis.textExtraction,
+          scoring: analysis.documentAnalysis.scoring,
+          checks: analysis.documentAnalysis.checks
+        }
+      }, null, 2);
+    }
+
+    async function loadAiAnalysisHistory() {
+      const credentialId = analysisCredentialId.value;
+      aiAnalysisHistory.replaceChildren();
+      if (!credentialId) {
+        aiAnalysisHistory.textContent = "Select a credential to view its analyses.";
+        return;
+      }
+      aiAnalysisHistory.textContent = "Loading analysis history...";
+      try {
+        const history = await requestJson("/api/credentials/" + encodeURIComponent(credentialId) + "/ai-analysis");
+        aiAnalysisHistory.replaceChildren();
+        if (!history.length) {
+          aiAnalysisHistory.textContent = "No analysis history for this credential.";
+          return;
+        }
+        history.forEach(function (record) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = record.createdAt + " - " + record.score + "/100 " + record.classification;
+          button.addEventListener("click", function () { renderAiAnalysis(record.analysis); });
+          aiAnalysisHistory.appendChild(button);
+        });
+      } catch (error) {
+        aiAnalysisHistory.textContent = "Unable to load analysis history.";
+      }
+    }
+
+    analysisCredentialId.addEventListener("change", loadAiAnalysisHistory);
+
+    aiAnalysisForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!analysisCredentialId.value || !academicDocument.files.length) return;
+      const formData = new FormData();
+      formData.append("credentialId", analysisCredentialId.value);
+      formData.append("document", academicDocument.files[0], academicDocument.files[0].name);
+      analyzeDocumentButton.disabled = true;
+      analyzeDocumentButton.textContent = "Analyzing...";
+      aiAnalysisResult.hidden = true;
+      setMessage(aiAnalysisMessage, "Analyzing locally...", "");
+      try {
+        const analysis = await requestJson("/api/ai/analyze-document", { method: "POST", body: formData });
+        renderAiAnalysis(analysis);
+        setMessage(aiAnalysisMessage, "Analysis complete. This is a risk assessment, not proof of authenticity.", "success");
+        await loadAiAnalysisHistory();
+      } catch (error) {
+        setMessage(aiAnalysisMessage, error.message || "Unable to analyze the document.", "error");
+      } finally {
+        analyzeDocumentButton.disabled = false;
+        analyzeDocumentButton.textContent = "Analyze document";
+      }
+    });
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault(); // stops the page from refreshing on submit
+      setMessage(formMessage, "", "");
+      submitButton.disabled = true;
+      submitButton.textContent = "Creating credential...";
+      issuedCredentialSummary.hidden = true;
+
+      try {
+        const credential = await requestJson("/api/credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentName: form.elements.studentName.value.trim(),
+            degree: form.elements.degree.value.trim(),
+            university: form.elements.university.value.trim(),
+            graduationYear: form.elements.graduationYear.value
+          })
+        });
+
+        credentials.unshift(credential);
+        renderCredentials();
+        analysisCredentialId.value = credential.id;
+        loadAiAnalysisHistory();
+        form.reset();
+        setMessage(formMessage, "Credential issued and anchored successfully.", "success");
+        issuedCredentialId.textContent = credential.id;
+        issuedBlockchainStatus.textContent = credential.blockchainStatus || "ANCHORED";
+        issuedTransaction.textContent = credential.blockchainTxHash || "Not available";
+        issuedCredentialHash.textContent = credential.hash;
+        const verifyUrl = new URL("/verify.html", window.location.origin);
+        verifyUrl.searchParams.set("id", credential.id);
+        issuedVerifyLink.href = verifyUrl.toString();
+        const qrUrl = "/api/credentials/" + encodeURIComponent(credential.id) + "/qr";
+        issuedQrImage.src = qrUrl;
+        issuedQrDownload.href = qrUrl;
+        issuedQrDownload.download = "credential-" + credential.id + "-qr.png";
+        const walletUrl = new URL("/wallet.html", window.location.origin);
+        walletUrl.searchParams.set("walletId", "wallet:" + credential.studentName);
+        issuedWalletLink.href = walletUrl.toString();
+        issuedCredentialSummary.hidden = false;
+        issuedCredentialSummary.dataset.state = "success";
+        refreshDashboard();
+      } catch (error) {
+        setMessage(formMessage, error.message || "Unable to issue credential. Please check the details and try again.", "error");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Issue credential";
+      }
+    });
+
+    verificationForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      setMessage(verificationMessage, "", "");
+      verificationResult.replaceChildren();
+      verificationButton.disabled = true;
+      verificationButton.textContent = "Verifying...";
+      setMessage(verificationMessage, "Verifying credential...", "info");
+
+      try {
+        const id = verificationForm.elements.credentialId.value.trim();
+        const credential = await requestJson(
+          "/api/credentials/" + encodeURIComponent(id)
+        );
+        const verification = await requestJson(
+          "/api/verify/" + encodeURIComponent(credential.hash)
+        );
+        renderVerification(credential, verification);
+        setMessage(verificationMessage, "Verification complete.", verification.result === "VALID" ? "success" : "info");
+        await refreshDashboard();
+      } catch (error) {
+        const message = error.message === "Failed to fetch"
+          ? "Unable to reach the verification service. Please try again."
+          : error.message || "Unable to verify credential. Please try again.";
+        setMessage(verificationMessage, message, "error");
+      } finally {
+        verificationButton.disabled = false;
+        verificationButton.textContent = "Verify";
+      }
+    });
+
+    logoutButton.addEventListener("click", async function () {
+      logoutButton.disabled = true;
+      logoutButton.textContent = "Signing out...";
+
+      try {
+        await requestJson("/api/auth/logout", { method: "POST" });
+      } finally {
+        window.location.replace("/login.html");
+      }
+    });
+
+    async function initializeIssuerDashboard() {
+      try {
+        const authState = await requestJson("/api/auth/me");
+        if (!authState.authenticated) {
+          window.location.replace("/login.html");
+          return;
+        }
+
+        issuerIdentity.textContent = authState.username;
+        document.getElementById("issuerRole").textContent = authState.role;
+        document.body.hidden = false;
+        loadCredentials();
+        refreshDashboard();
+      } catch (error) {
+        window.location.replace("/login.html");
+      }
+    }
+
+    initializeIssuerDashboard();
+  </script>
+</body>
+</html>
